@@ -1,0 +1,16 @@
+# Build artifacts
+build/
+*.o
+*.out
+*.dSYM/
+bin/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE settings
+.vscode/
+.idea/
+*.swp
+
