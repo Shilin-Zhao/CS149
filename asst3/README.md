@@ -58,6 +58,106 @@ Several advanced optimizations were considered but not implemented to ensure fai
 
 - **Asynchronous Memory Operations**: CUDA streams could be used to overlap memory transfers with kernel execution and parallelize independent operations, potentially reducing total rendering time. However, since the reference implementation likely uses synchronous operations, asynchronous approaches were avoided for fair benchmarking.
 
+## Part 2: Parallel Prefix-Sum (Scan) Implementation
+
+### Overview (English)
+
+This part implements a parallel exclusive scan operation using the standard upsweep/downsweep algorithm, along with a `find_repeats` function that identifies consecutive equal elements in an array.
+
+### Implementation Details
+
+- **Exclusive Scan**: Implemented using CUDA kernels for upsweep and downsweep phases
+- **Find Repeats**: Uses scan to compute prefix sums of equality flags to locate repeated elements
+- **Thrust Integration**: Leverages Thrust library for optimized scan operations
+- **Power-of-2 Handling**: Properly handles arrays rounded up to the next power of 2
+
+### Performance Results
+
+Achieved full score (5.0/5.0) on both scan and find_repeats operations:
+
+**Scan Performance:**
+```
+-------------------------------------------------------------------------
+| Element Count   | Ref Time        | Student Time    | Score           |
+-------------------------------------------------------------------------
+| 1000000         | 0.545           | 0.361           | 1.25            |
+| 10000000        | 8.71            | 7.723           | 1.25            |
+| 20000000        | 17.478          | 15.397          | 1.25            |
+| 40000000        | 34.753          | 31.03           | 1.25            |
+-------------------------------------------------------------------------
+|                                   | Total score:    | 5.0/5.0         |
+-------------------------------------------------------------------------
+```
+
+**Find Repeats Performance:**
+```
+-------------------------------------------------------------------------
+| Element Count   | Ref Time        | Student Time    | Score           |
+-------------------------------------------------------------------------
+| 1000000         | 1.15            | 0.869           | 1.25            |
+| 10000000        | 11.776          | 11.05           | 1.25            |
+| 20000000        | 22.31           | 20.076          | 1.25            |
+| 40000000        | 42.619          | 38.106          | 1.25            |
+-------------------------------------------------------------------------
+|                                   | Total score:    | 5.0/5.0         |
+-------------------------------------------------------------------------
+```
+
+### Design Notes
+
+This warm-up exercise provided essential practice with CUDA kernel launches, memory management, and parallel algorithm implementation before tackling the more complex circle renderer.
+
+---
+
+## Part 2: 并行前缀和 (Scan) 实现
+
+### 概述 (中文)
+
+这部分实现了并行exclusive scan操作，使用标准的upsweep/downsweep算法，同时实现了`find_repeats`函数来识别数组中连续相等的元素。
+
+### 实现细节
+
+- **Exclusive Scan**：使用CUDA内核实现upsweep和downsweep阶段
+- **Find Repeats**：使用scan计算等值标志的前缀和来定位重复元素
+- **Thrust集成**：利用Thrust库进行优化的scan操作
+- **2的幂处理**：正确处理向上舍入到下一个2的幂的数组
+
+### 性能结果
+
+在scan和find_repeats操作上都获得了满分 (5.0/5.0)：
+
+**Scan性能：**
+```
+-------------------------------------------------------------------------
+| 元素数量       | 参考时间        | 学生时间        | 分数            |
+-------------------------------------------------------------------------
+| 1000000         | 0.545           | 0.361           | 1.25            |
+| 10000000        | 8.71            | 7.723           | 1.25            |
+| 20000000        | 17.478          | 15.397          | 1.25            |
+| 40000000        | 34.753          | 31.03           | 1.25            |
+-------------------------------------------------------------------------
+|                                   | 总分:           | 5.0/5.0         |
+-------------------------------------------------------------------------
+```
+
+**Find Repeats性能：**
+```
+-------------------------------------------------------------------------
+| 元素数量       | 参考时间        | 学生时间        | 分数            |
+-------------------------------------------------------------------------
+| 1000000         | 1.15            | 0.869           | 1.25            |
+| 10000000        | 11.776          | 11.05           | 1.25            |
+| 20000000        | 22.31           | 20.076          | 1.25            |
+| 40000000        | 42.619          | 38.106          | 1.25            |
+-------------------------------------------------------------------------
+|                                   | 总分:           | 5.0/5.0         |
+-------------------------------------------------------------------------
+```
+
+### 设计说明
+
+这个热身练习在处理更复杂的圆圈渲染器之前，提供了CUDA内核启动、内存管理和并行算法实现的基本练习。
+
 ---
 
 ## 实现描述 (中文)
