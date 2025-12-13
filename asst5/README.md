@@ -4,6 +4,123 @@
 
 **100 points total**
 
+## Benchmark Results (H800)
+
+We have benchmarked several implementations on an H800 GPU. Below are the results for FlashAttention and SwiGLU, including brief explanations of the implementation methods used.
+
+### FlashAttention Benchmark Results
+
+Benchmarks were conducted on an H800 GPU with four different backend implementations:
+
+*   **PyTorch**: Reference implementation using standard PyTorch operations (`torch.matmul`, `torch.softmax`).
+*   **Triton**: A custom Triton kernel implementation using blocked attention with online softmax, reducing memory usage from $O(N^2)$ to $O(N)$.
+*   **FA3**: The official FlashAttention-3 library wrapper.
+*   **TileLang**: A JIT-compiled kernel using TileLang that implements FlashAttention with online softmax. It is optimized for the BHSD memory layout, avoiding the transpose overhead required by FA3.
+
+**Test Configuration**
+
+| Test | batch_size | num_heads | seq_len | head_dim |
+|------|------------|-----------|---------|----------|
+| 0    | 1          | 64        | 1024    | 128      |
+| 1    | 2          | 64        | 4096    | 128      |
+| 2    | 4          | 64        | 8192    | 128      |
+
+**Performance Comparison (mean latency in ms)**
+
+| Backend   | Test 0 | Test 1 | Test 2 |
+|-----------|--------|--------|--------|
+| PyTorch   | 0.529  | 18.724 | 161.205|
+| Triton    | 0.142  | 3.538  | 28.460 |
+| FA3       | 0.221  | 3.182  | 24.133 |
+| TileLang  | **0.112** | **2.487** | **23.030** |
+
+**Usage**
+
+Select the backend by setting the `FLASH_ATTN_BACKEND` environment variable:
+
+```bash
+# PyTorch Reference
+FLASH_ATTN_BACKEND=pytorch python ../eval.py benchmark test_cases/test.txt
+
+# Triton Implementation (Default)
+FLASH_ATTN_BACKEND=triton python ../eval.py benchmark test_cases/test.txt
+
+# FlashAttention-3 Library
+FLASH_ATTN_BACKEND=fa3 python ../eval.py benchmark test_cases/test.txt
+
+# TileLang Implementation (Fastest)
+FLASH_ATTN_BACKEND=tilelang python ../eval.py benchmark test_cases/test.txt
+```
+
+**Conclusions**
+
+*   **PyTorch**: Baseline implementation, slowest, good for correctness checking.
+*   **Triton**: Manual implementation, reasonably fast for small batches.
+*   **FA3**: Official FlashAttention-3 library, excellent performance.
+*   **TileLang**: 🏆 **Best Performance**, outperforming FA3 in all test cases (Test 0: 2x faster, Test 1: 28% faster, Test 2: 5% faster).
+
+> ⚠️ **Fairness Note**: The performance difference with FA3 primarily comes from **data format conversion overhead**, not the algorithm itself.
+>
+> *   The test framework uses `(batch, heads, seq_len, dim)` (BHSD) format.
+> *   FA3 requires `(batch, seq_len, heads, dim)` (BSHD) format.
+> *   Thus, FA3 requires 4 `.transpose().contiguous()` operations (3 inputs + 1 output).
+> *   The TileLang kernel directly supports BHSD format, avoiding conversion.
+>
+> If the test framework natively used BSHD, FA3's pure kernel performance should be comparable to or better than TileLang.
+
+---
+
+### SwiGLU Benchmark Results
+
+Benchmarks were conducted on an H800 GPU with four different backend implementations:
+
+*   **PyTorch**: Baseline implementation using standard PyTorch operations.
+*   **Unfused**: Uses separate Triton kernels for matrix multiplications and element-wise operations.
+*   **Dual Fused**: Uses two fused kernels: one for `Swish(XW + b)` and another for `XV + c`, reducing global memory reads/writes.
+*   **Fully Fused**: A single kernel that computes `Swish(XW + b) * (XV + c)` entirely in registers, reading inputs once and writing only the final result to DRAM.
+
+**Test Configuration**
+
+| batch_size | seq | in_features | hidden_size |
+|------------|-----|-------------|-------------|
+| 256        | 64  | 2048        | 4096        |
+
+**Performance Comparison (mean latency in ms)**
+
+| Backend      | Latency (ms) | Relative to PyTorch |
+|--------------|--------------|---------------------|
+| PyTorch      | 17.147       | 1.00x               |
+| Unfused      | 18.278       | 0.94x               |
+| Dual Fused   | 16.822       | 1.02x               |
+| Fully Fused  | 16.342       | 1.05x               |
+
+**Usage**
+
+Select the backend by setting the `SWIGLU_BACKEND` environment variable:
+
+```bash
+# PyTorch Baseline (Default)
+SWIGLU_BACKEND=pytorch python ../eval.py benchmark test_cases/test.txt
+
+# Triton Unfused
+SWIGLU_BACKEND=unfused python ../eval.py benchmark test_cases/test.txt
+
+# Triton Dual Fused
+SWIGLU_BACKEND=dual_fused python ../eval.py benchmark test_cases/test.txt
+
+# Triton Fully Fused (Single Kernel)
+SWIGLU_BACKEND=fully_fused python ../eval.py benchmark test_cases/test.txt
+```
+
+**Conclusions**
+
+*   **PyTorch**: Baseline implementation; cuBLAS is already very fast.
+*   **Unfused**: Triton matmul is slightly slower than cuBLAS.
+*   **Dual Fused**: Fusing bias + swish reduces memory access, slightly outperforming PyTorch.
+*   **Fully Fused**: Single kernel fully fused implementation, achieving the best performance (16.342ms, 5% faster than PyTorch).
+
+---
+
 ## Overview ##
 
 This assignment is an open ended assignment that is a bit different than your prior programming assignments in CS149. Really we want you to think about it as a very short final project that we've calibrated so that you can get a decent score on it from about 2 evenings of work. But we've also designed it so that teams that really want to get deep into it can spend a significant amount of time pursuing __very fast code implementations on a modern high-end GPU__.  There is no single task to optimize, and there is no performance bar that determines your score. Instead we are asking you to pick one (or more) of a palette of AI-related kernels we've provided, and then produce an optimizated implementation of the code for an H100 GPU. (All the kernels have baseline implementations in PyTorch.)
@@ -244,5 +361,4 @@ __But to be clear, a clever approach to vibe-coding a solution by iteratively wo
 
 Overall we except you to submit a handin as a single `.zip` containing `handin.pdf` and a sequence of code files for the key steps you describe in the handout. 
 
-
-
+---
